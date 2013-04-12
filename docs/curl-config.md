@@ -87,7 +87,9 @@ no, one or several names. If more than one name, they appear comma-separated.
 ## `--static-libs`
 
 Shows the complete set of libs and other linker options you need in order to
-link your application with libcurl statically. (Added in 7.17.1)
+link your application with libcurl statically. Note that Fedora/RHEL libcurl
+packages do not provide any static libraries, thus cannot be linked statically.
+(Added in 7.17.1)
 
 ## `--version`
 
