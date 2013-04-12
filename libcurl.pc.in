@@ -28,6 +28,7 @@ libdir=@libdir@
 includedir=@includedir@
 supported_protocols="@SUPPORT_PROTOCOLS@"
 supported_features="@SUPPORT_FEATURES@"
+configure_options=@CONFIGURE_OPTIONS@
 
 Name: libcurl
 URL: https://curl.se/
