@@ -74,7 +74,7 @@ while test "$#" -gt 0; do
     ;;
 
   --cc)
-    echo '@CC@'
+    echo 'gcc'
     ;;
 
   --prefix)
@@ -149,16 +149,7 @@ while test "$#" -gt 0; do
     ;;
 
   --libs)
-    if test "@libdir@" != '/usr/lib' && test "@libdir@" != '/usr/lib64'; then
-      curllibdir="-L@libdir@ "
-    else
-      curllibdir=''
-    fi
-    if test '@ENABLE_SHARED@' = 'no'; then
-      echo "${curllibdir}-lcurl @LIBCURL_PC_LIBS_PRIVATE@"
-    else
-      echo "${curllibdir}-lcurl"
-    fi
+    echo '-lcurl'
     ;;
 
   --ssl-backends)
@@ -166,16 +157,12 @@ while test "$#" -gt 0; do
     ;;
 
   --static-libs)
-    if test '@ENABLE_STATIC@' != 'no'; then
-      echo "@libdir@/libcurl.@libext@ @LIBCURL_PC_LDFLAGS_PRIVATE@ @LIBCURL_PC_LIBS_PRIVATE@"
-    else
-      echo 'curl was built with static libraries disabled' >&2
-      exit 1
-    fi
+    echo 'curl was built with static libraries disabled' >&2
+    exit 1
     ;;
 
   --configure)
-    echo @CONFIGURE_OPTIONS@
+    pkg-config libcurl --variable=configure_options | sed 's/^"//;s/"$//'
     ;;
 
   *)
