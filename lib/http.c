@@ -519,13 +519,83 @@ static CURLcode http_perhapsrewind(struct Curl_easy *data,
   return CURLE_OK;
 }
 
+/**
+ * http_should_fail() determines whether an HTTP response code has gotten us
+ * into an error state or not.
+ *
+ * @retval FALSE communications should continue
+ *
+ * @retval TRUE communications should not continue
+ */
+static bool http_should_fail(struct Curl_easy *data, int httpcode)
+{
+  DEBUGASSERT(data);
+  DEBUGASSERT(data->conn);
+
+  /*
+  ** If we have not been asked to fail on error,
+  ** do not fail.
+  */
+  if(!data->set.http_fail_on_error)
+    return FALSE;
+
+  /*
+  ** Any code < 400 is never terminal.
+  */
+  if(httpcode < 400)
+    return FALSE;
+
+  /*
+  ** A 416 response to a resume request is presumably because the file is
+  ** already completely downloaded and thus not actually a fail.
+  */
+  if(data->state.resume_from && data->state.httpreq == HTTPREQ_GET &&
+     httpcode == 416)
+    return FALSE;
+
+  /*
+  ** Any code >= 400 that is not 401 or 407 is always
+  ** a terminal error
+  */
+  if((httpcode != 401) && (httpcode != 407))
+    return TRUE;
+
+  /*
+  ** All we have left to deal with is 401 and 407
+  */
+  DEBUGASSERT((httpcode == 401) || (httpcode == 407));
+
+  /*
+  ** Examine the current authentication state to see if this is an error. The
+  ** idea is for this function to get called after processing all the headers
+  ** in a response message. So, if we have been to asked to authenticate a
+  ** particular stage, and we have done it, we are OK. If we are already
+  ** completely authenticated, it is not OK to get another 401 or 407.
+  **
+  ** It is possible for authentication to go stale such that the client needs
+  ** to reauthenticate. Once that info is available, use it here.
+  */
+
+  /*
+  ** Either we are not authenticating, or we are supposed to be authenticating
+  ** something else. This is an error.
+  */
+  if((httpcode == 401) && !data->state.aptr.user)
+    return TRUE;
+#ifndef CURL_DISABLE_PROXY
+  if((httpcode == 407) && !data->conn->bits.proxy_user_passwd)
+    return TRUE;
+#endif
+
+  return data->state.authproblem;
+}
+
 /*
  * Curl_http_auth_act() gets called when all HTTP headers have been received
  * and it checks what authentication methods that are available and decides
  * which one (if any) to use. It will set 'newurl' if an auth method was
  * picked.
  */
-
 CURLcode Curl_http_auth_act(struct Curl_easy *data)
 {
   struct connectdata *conn = data->conn;
@@ -1084,77 +1154,6 @@ CURLcode Curl_http_input_auth(struct Curl_easy *data, bool proxy,
 #endif
 }
 
-/**
- * http_should_fail() determines whether an HTTP response code has gotten us
- * into an error state or not.
- *
- * @retval FALSE communications should continue
- *
- * @retval TRUE communications should not continue
- */
-static bool http_should_fail(struct Curl_easy *data, int httpcode)
-{
-  DEBUGASSERT(data);
-  DEBUGASSERT(data->conn);
-
-  /*
-  ** If we have not been asked to fail on error,
-  ** do not fail.
-  */
-  if(!data->set.http_fail_on_error)
-    return FALSE;
-
-  /*
-  ** Any code < 400 is never terminal.
-  */
-  if(httpcode < 400)
-    return FALSE;
-
-  /*
-  ** A 416 response to a resume request is presumably because the file is
-  ** already completely downloaded and thus not actually a fail.
-  */
-  if(data->state.resume_from && data->state.httpreq == HTTPREQ_GET &&
-     httpcode == 416)
-    return FALSE;
-
-  /*
-  ** Any code >= 400 that is not 401 or 407 is always
-  ** a terminal error
-  */
-  if((httpcode != 401) && (httpcode != 407))
-    return TRUE;
-
-  /*
-  ** All we have left to deal with is 401 and 407
-  */
-  DEBUGASSERT((httpcode == 401) || (httpcode == 407));
-
-  /*
-  ** Examine the current authentication state to see if this is an error. The
-  ** idea is for this function to get called after processing all the headers
-  ** in a response message. So, if we have been to asked to authenticate a
-  ** particular stage, and we have done it, we are OK. If we are already
-  ** completely authenticated, it is not OK to get another 401 or 407.
-  **
-  ** It is possible for authentication to go stale such that the client needs
-  ** to reauthenticate. Once that info is available, use it here.
-  */
-
-  /*
-  ** Either we are not authenticating, or we are supposed to be authenticating
-  ** something else. This is an error.
-  */
-  if((httpcode == 401) && !data->state.aptr.user)
-    return TRUE;
-#ifndef CURL_DISABLE_PROXY
-  if((httpcode == 407) && !data->conn->bits.proxy_user_passwd)
-    return TRUE;
-#endif
-
-  return data->state.authproblem;
-}
-
 static void http_switch_to_get(struct Curl_easy *data, int code)
 {
   const char *req = data->set.str[STRING_CUSTOMREQUEST];
@@ -1531,6 +1530,33 @@ int Curl_http_getsock_do(struct Curl_easy *data,
   (void)conn;
   socks[0] = Curl_conn_get_socket(data, FIRSTSOCKET);
   return GETSOCK_WRITESOCK(0);
+}
+
+static CURLcode http_write_header(struct Curl_easy *data,
+                                  const char *hd, size_t hdlen)
+{
+  CURLcode result;
+  int writetype;
+
+  /* now, only output this if the header AND body are requested:
+   */
+  Curl_debug(data, CURLINFO_HEADER_IN, hd, hdlen);
+
+  writetype = CLIENTWRITE_HEADER |
+    ((data->req.httpcode / 100 == 1) ? CLIENTWRITE_1XX : 0);
+
+  result = Curl_client_write(data, writetype, hd, hdlen);
+  if(result)
+    return result;
+
+  result = Curl_bump_headersize(data, hdlen, FALSE);
+  if(result)
+    return result;
+
+  data->req.deductheadercount = (100 <= data->req.httpcode &&
+                                 199 >= data->req.httpcode) ?
+    data->req.headerbytecount : 0;
+  return result;
 }
 
 /*
@@ -3658,33 +3684,6 @@ CURLcode Curl_bump_headersize(struct Curl_easy *data,
     return CURLE_RECV_ERROR;
   }
   return CURLE_OK;
-}
-
-static CURLcode http_write_header(struct Curl_easy *data,
-                                  const char *hd, size_t hdlen)
-{
-  CURLcode result;
-  int writetype;
-
-  /* now, only output this if the header AND body are requested:
-   */
-  Curl_debug(data, CURLINFO_HEADER_IN, hd, hdlen);
-
-  writetype = CLIENTWRITE_HEADER |
-    ((data->req.httpcode/100 == 1) ? CLIENTWRITE_1XX : 0);
-
-  result = Curl_client_write(data, writetype, hd, hdlen);
-  if(result)
-    return result;
-
-  result = Curl_bump_headersize(data, hdlen, FALSE);
-  if(result)
-    return result;
-
-  data->req.deductheadercount = (100 <= data->req.httpcode &&
-                                 199 >= data->req.httpcode) ?
-    data->req.headerbytecount : 0;
-  return result;
 }
 
 static CURLcode http_on_response(struct Curl_easy *data,

@@ -45,73 +45,7 @@
 /* The last #include file should be: */
 #include "memdebug.h"
 
-/*
- * Forward declarations.
- */
-
-static CURLcode gopher_do(struct Curl_easy *data, bool *done);
 #ifdef USE_SSL
-static CURLcode gopher_connect(struct Curl_easy *data, bool *done);
-static CURLcode gopher_connecting(struct Curl_easy *data, bool *done);
-#endif
-
-/*
- * Gopher protocol handler.
- * This is also a nice simple template to build off for simple
- * connect-command-download protocols.
- */
-
-const struct Curl_handler Curl_handler_gopher = {
-  "gopher",                             /* scheme */
-  ZERO_NULL,                            /* setup_connection */
-  gopher_do,                            /* do_it */
-  ZERO_NULL,                            /* done */
-  ZERO_NULL,                            /* do_more */
-  ZERO_NULL,                            /* connect_it */
-  ZERO_NULL,                            /* connecting */
-  ZERO_NULL,                            /* doing */
-  ZERO_NULL,                            /* proto_getsock */
-  ZERO_NULL,                            /* doing_getsock */
-  ZERO_NULL,                            /* domore_getsock */
-  ZERO_NULL,                            /* perform_getsock */
-  ZERO_NULL,                            /* disconnect */
-  ZERO_NULL,                            /* write_resp */
-  ZERO_NULL,                            /* write_resp_hd */
-  ZERO_NULL,                            /* connection_check */
-  ZERO_NULL,                            /* attach connection */
-  ZERO_NULL,                            /* follow */
-  PORT_GOPHER,                          /* defport */
-  CURLPROTO_GOPHER,                     /* protocol */
-  CURLPROTO_GOPHER,                     /* family */
-  PROTOPT_NONE                          /* flags */
-};
-
-#ifdef USE_SSL
-const struct Curl_handler Curl_handler_gophers = {
-  "gophers",                            /* scheme */
-  ZERO_NULL,                            /* setup_connection */
-  gopher_do,                            /* do_it */
-  ZERO_NULL,                            /* done */
-  ZERO_NULL,                            /* do_more */
-  gopher_connect,                       /* connect_it */
-  gopher_connecting,                    /* connecting */
-  ZERO_NULL,                            /* doing */
-  ZERO_NULL,                            /* proto_getsock */
-  ZERO_NULL,                            /* doing_getsock */
-  ZERO_NULL,                            /* domore_getsock */
-  ZERO_NULL,                            /* perform_getsock */
-  ZERO_NULL,                            /* disconnect */
-  ZERO_NULL,                            /* write_resp */
-  ZERO_NULL,                            /* write_resp_hd */
-  ZERO_NULL,                            /* connection_check */
-  ZERO_NULL,                            /* attach connection */
-  ZERO_NULL,                            /* follow */
-  PORT_GOPHER,                          /* defport */
-  CURLPROTO_GOPHERS,                    /* protocol */
-  CURLPROTO_GOPHER,                     /* family */
-  PROTOPT_SSL                           /* flags */
-};
-
 static CURLcode gopher_connect(struct Curl_easy *data, bool *done)
 {
   (void)data;
@@ -243,4 +177,63 @@ static CURLcode gopher_do(struct Curl_easy *data, bool *done)
   Curl_xfer_setup1(data, CURL_XFER_RECV, -1, FALSE);
   return CURLE_OK;
 }
+
+/*
+ * Gopher protocol handler.
+ * This is also a nice simple template to build off for simple
+ * connect-command-download protocols.
+ */
+
+const struct Curl_handler Curl_handler_gopher = {
+  "gopher",                             /* scheme */
+  ZERO_NULL,                            /* setup_connection */
+  gopher_do,                            /* do_it */
+  ZERO_NULL,                            /* done */
+  ZERO_NULL,                            /* do_more */
+  ZERO_NULL,                            /* connect_it */
+  ZERO_NULL,                            /* connecting */
+  ZERO_NULL,                            /* doing */
+  ZERO_NULL,                            /* proto_getsock */
+  ZERO_NULL,                            /* doing_getsock */
+  ZERO_NULL,                            /* domore_getsock */
+  ZERO_NULL,                            /* perform_getsock */
+  ZERO_NULL,                            /* disconnect */
+  ZERO_NULL,                            /* write_resp */
+  ZERO_NULL,                            /* write_resp_hd */
+  ZERO_NULL,                            /* connection_check */
+  ZERO_NULL,                            /* attach connection */
+  ZERO_NULL,                            /* follow */
+  PORT_GOPHER,                          /* defport */
+  CURLPROTO_GOPHER,                     /* protocol */
+  CURLPROTO_GOPHER,                     /* family */
+  PROTOPT_NONE                          /* flags */
+};
+
+#ifdef USE_SSL
+const struct Curl_handler Curl_handler_gophers = {
+  "gophers",                            /* scheme */
+  ZERO_NULL,                            /* setup_connection */
+  gopher_do,                            /* do_it */
+  ZERO_NULL,                            /* done */
+  ZERO_NULL,                            /* do_more */
+  gopher_connect,                       /* connect_it */
+  gopher_connecting,                    /* connecting */
+  ZERO_NULL,                            /* doing */
+  ZERO_NULL,                            /* proto_getsock */
+  ZERO_NULL,                            /* doing_getsock */
+  ZERO_NULL,                            /* domore_getsock */
+  ZERO_NULL,                            /* perform_getsock */
+  ZERO_NULL,                            /* disconnect */
+  ZERO_NULL,                            /* write_resp */
+  ZERO_NULL,                            /* write_resp_hd */
+  ZERO_NULL,                            /* connection_check */
+  ZERO_NULL,                            /* attach connection */
+  ZERO_NULL,                            /* follow */
+  PORT_GOPHER,                          /* defport */
+  CURLPROTO_GOPHERS,                    /* protocol */
+  CURLPROTO_GOPHER,                     /* family */
+  PROTOPT_SSL                           /* flags */
+};
+#endif
+
 #endif /* CURL_DISABLE_GOPHER */
