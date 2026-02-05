@@ -2416,6 +2416,7 @@ static int test_sws(int argc, char *argv[])
             if(req->connmon) {
               const char *keepopen = "[DISCONNECT]\n";
               sws_storerequest(keepopen, strlen(keepopen));
+              req->connmon = FALSE;
             }
 
             if(!req->open)
