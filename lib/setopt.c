@@ -1770,7 +1770,6 @@ static CURLcode setopt_cptr(struct Curl_easy *data, CURLoption option,
      * String to set in the HTTP Referer: field.
      */
     result = Curl_setstropt(&s->str[STRING_SET_REFERER], ptr);
-    Curl_bufref_set(&data->state.referer, s->str[STRING_SET_REFERER], 0, NULL);
     break;
 
   case CURLOPT_USERAGENT:

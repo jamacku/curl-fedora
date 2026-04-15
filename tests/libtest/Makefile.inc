@@ -100,7 +100,7 @@ TESTS_C = \
   lib1582.c lib1588.c \
   lib1591.c lib1592.c lib1593.c lib1594.c                     lib1597.c \
   lib1598.c lib1599.c \
-  lib1647.c \
+  lib1647.c lib1649.c \
   lib1662.c \
   lib1686.c \
   lib1900.c lib1901.c lib1902.c lib1903.c lib1905.c lib1906.c lib1907.c \
@@ -115,7 +115,7 @@ TESTS_C = \
   lib2023.c lib2032.c lib2082.c \
   lib2301.c lib2302.c lib2304.c           lib2306.c lib2308.c lib2309.c \
   lib2402.c           lib2404.c lib2405.c \
-  lib2502.c \
+  lib2502.c lib2505.c \
   lib2700.c \
   lib3010.c lib3025.c lib3026.c lib3027.c lib3033.c lib3034.c \
   lib3100.c lib3101.c lib3102.c lib3103.c lib3104.c lib3105.c \

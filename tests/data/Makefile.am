@@ -221,6 +221,7 @@ test1614 test1615 test1616 test1617 \
 test1620 test1621 test1622 \
 \
 test1630 test1631 test1632 test1633 test1634 test1635 test1636 \
+test1649 \
 \
 test1650 test1651 test1652 test1653 test1654 test1655 test1656 test1657 \
 test1658 \
@@ -267,7 +268,7 @@ test2309 \
 \
 test2400 test2401 test2402 test2403 test2404 test2405 test2406 test2407 \
 \
-test2500 test2501 test2502 test2503 \
+test2500 test2501 test2502 test2503 test2505 \
 \
 test2600 test2601 test2602 test2603 test2604 test2605 \
 \
