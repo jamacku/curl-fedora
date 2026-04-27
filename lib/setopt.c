@@ -49,6 +49,7 @@
 #include "strdup.h"
 #include "escape.h"
 #include "bufref.h"
+#include "vauth/vauth.h"
 
 static CURLcode setopt_set_timeout_sec(timediff_t *ptimeout_ms, long secs)
 {
@@ -1614,6 +1615,21 @@ static CURLcode cookiefile(struct Curl_easy *data, const char *ptr)
 }
 #endif
 
+#ifndef CURL_DISABLE_PROXY
+
+static CURLcode setproxy(struct Curl_easy *data, const char *proxy)
+{
+  if((data->set.str[STRING_PROXY] && proxy) &&
+     !strcmp(data->set.str[STRING_PROXY], proxy))
+    return CURLE_OK;
+
+  Curl_auth_digest_cleanup(&data->state.proxydigest);
+  memset(&data->state.authproxy, 0, sizeof(data->state.authproxy));
+  return Curl_setstropt(&data->set.str[STRING_PROXY], proxy);
+}
+
+#endif
+
 static CURLcode setopt_cptr(struct Curl_easy *data, CURLoption option,
                             char *ptr)
 {
@@ -1821,7 +1837,7 @@ static CURLcode setopt_cptr(struct Curl_easy *data, CURLoption option,
      * Setting it to NULL, means no proxy but allows the environment variables
      * to decide for us (if CURLOPT_SOCKS_PROXY setting it to NULL).
      */
-    return Curl_setstropt(&s->str[STRING_PROXY], ptr);
+    return setproxy(data, ptr);
 
   case CURLOPT_PRE_PROXY:
     /*
