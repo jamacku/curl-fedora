@@ -637,6 +637,8 @@ struct connectdata {
   char *options; /* options string, allocated */
   char *sasl_authzid;     /* authorization identity string, allocated */
   char *oauth_bearer; /* OAUTH2 bearer, allocated */
+  char *sasl_service; /* SASL service name, allocated */
+  char *proxy_service; /* proxy SASL service name, allocated */
   struct curltime created; /* creation time */
   struct curltime lastused; /* when returned to the connection poolas idle */
 

@@ -538,6 +538,8 @@ void Curl_conn_free(struct Curl_easy *data, struct connectdata *conn)
   Curl_safefree(conn->sasl_authzid);
   Curl_safefree(conn->options);
   Curl_safefree(conn->oauth_bearer);
+  Curl_safefree(conn->sasl_service);
+  Curl_safefree(conn->proxy_service);
   Curl_safefree(conn->host.rawalloc); /* hostname buffer */
   Curl_safefree(conn->conn_to_host.rawalloc); /* hostname buffer */
   Curl_safefree(conn->hostname_resolve);
@@ -1032,7 +1034,8 @@ static bool url_match_auth(struct connectdata *conn,
     if(Curl_timestrcmp(m->needle->user, conn->user) ||
        Curl_timestrcmp(m->needle->passwd, conn->passwd) ||
        Curl_timestrcmp(m->needle->sasl_authzid, conn->sasl_authzid) ||
-       Curl_timestrcmp(m->needle->oauth_bearer, conn->oauth_bearer)) {
+       Curl_timestrcmp(m->needle->oauth_bearer, conn->oauth_bearer) ||
+       Curl_timestrcmp(m->needle->sasl_service, conn->sasl_service)) {
       /* one of them was different */
       return FALSE;
     }
@@ -1114,7 +1117,8 @@ static bool url_match_auth_ntlm(struct connectdata *conn,
      partway through a handshake!) */
   if(m->want_ntlm_http) {
     if(Curl_timestrcmp(m->needle->user, conn->user) ||
-       Curl_timestrcmp(m->needle->passwd, conn->passwd)) {
+       Curl_timestrcmp(m->needle->passwd, conn->passwd) ||
+       Curl_timestrcmp(m->needle->sasl_service, conn->sasl_service)) {
 
       /* we prefer a credential match, but this is at least a connection
          that can be reused and "upgraded" to NTLM */
@@ -1139,7 +1143,9 @@ static bool url_match_auth_ntlm(struct connectdata *conn,
     if(Curl_timestrcmp(m->needle->http_proxy.user,
                        conn->http_proxy.user) ||
        Curl_timestrcmp(m->needle->http_proxy.passwd,
-                       conn->http_proxy.passwd))
+                       conn->http_proxy.passwd) ||
+       Curl_timestrcmp(m->needle->proxy_service,
+                       conn->proxy_service))
       return FALSE;
   }
   else if(conn->proxy_ntlm_state != NTLMSTATE_NONE) {
@@ -1180,7 +1186,8 @@ static bool url_match_auth_nego(struct connectdata *conn,
      so that we can reuse Negotiate connections if possible. */
   if(m->want_nego_http) {
     if(Curl_timestrcmp(m->needle->user, conn->user) ||
-       Curl_timestrcmp(m->needle->passwd, conn->passwd))
+       Curl_timestrcmp(m->needle->passwd, conn->passwd) ||
+       Curl_timestrcmp(m->needle->sasl_service, conn->sasl_service))
       return FALSE;
   }
   else if(conn->http_negotiate_state != GSS_AUTHNONE) {
@@ -1199,7 +1206,9 @@ static bool url_match_auth_nego(struct connectdata *conn,
     if(Curl_timestrcmp(m->needle->http_proxy.user,
                        conn->http_proxy.user) ||
        Curl_timestrcmp(m->needle->http_proxy.passwd,
-                       conn->http_proxy.passwd))
+                       conn->http_proxy.passwd) ||
+       Curl_timestrcmp(m->needle->proxy_service,
+                       conn->proxy_service))
       return FALSE;
   }
   else if(conn->proxy_negotiate_state != GSS_AUTHNONE) {
@@ -3500,6 +3509,23 @@ static CURLcode create_conn(struct Curl_easy *data,
   if(data->set.str[STRING_BEARER]) {
     conn->oauth_bearer = curlx_strdup(data->set.str[STRING_BEARER]);
     if(!conn->oauth_bearer) {
+      result = CURLE_OUT_OF_MEMORY;
+      goto out;
+    }
+  }
+
+  if(data->set.str[STRING_SERVICE_NAME]) {
+    conn->sasl_service = curlx_strdup(data->set.str[STRING_SERVICE_NAME]);
+    if(!conn->sasl_service) {
+      result = CURLE_OUT_OF_MEMORY;
+      goto out;
+    }
+  }
+
+  if(data->set.str[STRING_PROXY_SERVICE_NAME]) {
+    conn->proxy_service =
+      curlx_strdup(data->set.str[STRING_PROXY_SERVICE_NAME]);
+    if(!conn->proxy_service) {
       result = CURLE_OUT_OF_MEMORY;
       goto out;
     }
