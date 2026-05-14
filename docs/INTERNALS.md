@@ -32,6 +32,7 @@ versions of libs and build tools.
  - c-ares       1.6.0
  - libssh       0.9.0
  - libidn2      2.0.0
+ - libgsasl     1.6.0
  - wolfSSL      3.4.6
  - OpenLDAP     2.0
  - MIT Kerberos 1.2.4
