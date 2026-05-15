@@ -121,6 +121,7 @@ static NETRCcode parsenetrc(struct store_netrc *store,
   unsigned char found = 0; /* login + password found bits, as they can come in
                               any order */
   bool our_login = FALSE;  /* found our login name */
+  bool login_mismatch = FALSE; /* host matched but login did not */
   bool done = FALSE;
   char *netrcbuffer;
   struct dynbuf token;
@@ -303,16 +304,23 @@ static NETRCcode parsenetrc(struct store_netrc *store,
             done = TRUE;
             break;
           }
+          if(specific_login && !our_login && (found & FOUND_LOGIN))
+            login_mismatch = TRUE;
           state = HOSTFOUND;
           keyword = NONE;
           found = 0;
+          our_login = FALSE;
           Curl_safefree(password);
           if(!specific_login)
             Curl_safefree(login);
         }
         else if(curl_strequal("default", tok)) {
+          if(specific_login && !our_login && (found & FOUND_LOGIN))
+            login_mismatch = TRUE;
           state = HOSTVALID;
           retcode = NETRC_OK; /* we did find our host */
+          found = 0;
+          our_login = FALSE;
           Curl_safefree(password);
           if(!specific_login)
             Curl_safefree(login);
@@ -339,7 +347,12 @@ static NETRCcode parsenetrc(struct store_netrc *store,
 out:
   curlx_dyn_free(&token);
   if(!retcode) {
-    if(!password && our_login) {
+    if(specific_login && !our_login &&
+       ((found & FOUND_LOGIN) || login_mismatch)) {
+      /* host matched, a login was present but did not match the user */
+      retcode = NETRC_NO_MATCH;
+    }
+    else if(!password && our_login) {
       /* success without a password, set a blank one */
       password = curlx_strdup("");
       if(!password)
