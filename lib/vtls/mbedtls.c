@@ -485,7 +485,7 @@ static CURLcode mbed_connect_step1(struct Curl_cfilter *cf,
   char * const ssl_cert = ssl_config->primary.clientcert;
   const struct curl_blob *ssl_cert_blob = ssl_config->primary.cert_blob;
 #ifdef MBEDTLS_PEM_PARSE_C
-  const char * const ssl_cert_type = ssl_config->cert_type;
+  const char * const ssl_cert_type = ssl_config->primary.cert_type;
 #endif
   const char * const ssl_crlfile = ssl_config->primary.CRLfile;
   const char *hostname = connssl->peer.hostname;
@@ -642,7 +642,7 @@ static CURLcode mbed_connect_step1(struct Curl_cfilter *cf,
     if(ret) {
       mbedtls_strerror(ret, errorbuf, sizeof(errorbuf));
       failf(data, "mbedTLS: error reading client cert data %s: (-0x%04X) %s",
-            ssl_config->key, -ret, errorbuf);
+            ssl_config->primary.key, -ret, errorbuf);
       return CURLE_SSL_CERTPROBLEM;
     }
   }
@@ -650,12 +650,12 @@ static CURLcode mbed_connect_step1(struct Curl_cfilter *cf,
   /* Load the client private key */
   mbedtls_pk_init(&backend->pk);
 
-  if(ssl_config->key || ssl_config->key_blob) {
-    if(ssl_config->key) {
+  if(ssl_config->primary.key || ssl_config->primary.key_blob) {
+    if(ssl_config->primary.key) {
 #ifdef MBEDTLS_FS_IO
 #if MBEDTLS_VERSION_NUMBER >= 0x04000000
-      ret = mbedtls_pk_parse_keyfile(&backend->pk, ssl_config->key,
-                                     ssl_config->key_passwd);
+      ret = mbedtls_pk_parse_keyfile(&backend->pk, ssl_config->primary.key,
+                                     ssl_config->primary.key_passwd);
       if(ret == 0 && !(mbedtls_pk_can_do_psa(&backend->pk,
                                    PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_ANY_HASH),
                                    PSA_KEY_USAGE_SIGN_HASH) ||
@@ -664,8 +664,8 @@ static CURLcode mbed_connect_step1(struct Curl_cfilter *cf,
                                    PSA_KEY_USAGE_SIGN_HASH)))
         ret = MBEDTLS_ERR_PK_TYPE_MISMATCH;
 #else
-      ret = mbedtls_pk_parse_keyfile(&backend->pk, ssl_config->key,
-                                     ssl_config->key_passwd,
+      ret = mbedtls_pk_parse_keyfile(&backend->pk, ssl_config->primary.key,
+                                     ssl_config->primary.key_passwd,
                                      mbedtls_ctr_drbg_random,
                                      &rng.drbg);
       if(ret == 0 && !(mbedtls_pk_can_do(&backend->pk, MBEDTLS_PK_RSA) ||
@@ -676,7 +676,7 @@ static CURLcode mbed_connect_step1(struct Curl_cfilter *cf,
       if(ret) {
         mbedtls_strerror(ret, errorbuf, sizeof(errorbuf));
         failf(data, "mbedTLS: error reading private key %s: (-0x%04X) %s",
-              ssl_config->key, -ret, errorbuf);
+              ssl_config->primary.key, -ret, errorbuf);
         return CURLE_SSL_CERTPROBLEM;
       }
 #else
@@ -685,10 +685,10 @@ static CURLcode mbed_connect_step1(struct Curl_cfilter *cf,
 #endif
     }
     else {
-      const struct curl_blob *ssl_key_blob = ssl_config->key_blob;
+      const struct curl_blob *ssl_key_blob = ssl_config->primary.key_blob;
       const unsigned char *key_data =
         (const unsigned char *)ssl_key_blob->data;
-      const char *passwd = ssl_config->key_passwd;
+      const char *passwd = ssl_config->primary.key_passwd;
 #if MBEDTLS_VERSION_NUMBER >= 0x04000000
       ret = mbedtls_pk_parse_key(&backend->pk, key_data, ssl_key_blob->len,
                                  (const unsigned char *)passwd,
@@ -881,7 +881,7 @@ static CURLcode mbed_connect_step1(struct Curl_cfilter *cf,
                             NULL);
 #endif
 
-  if(ssl_config->key || ssl_config->key_blob) {
+  if(ssl_config->primary.key || ssl_config->primary.key_blob) {
     mbedtls_ssl_conf_own_cert(&backend->config,
                               &backend->clicert, &backend->pk);
   }

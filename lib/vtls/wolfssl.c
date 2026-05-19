@@ -937,10 +937,10 @@ static CURLcode client_certificate(struct Curl_easy *data,
 #ifndef NO_FILESYSTEM
   if(ssl_config->primary.cert_blob || ssl_config->primary.clientcert) {
     const char *cert_file = ssl_config->primary.clientcert;
-    const char *key_file = ssl_config->key;
+    const char *key_file = ssl_config->primary.key;
     const struct curl_blob *cert_blob = ssl_config->primary.cert_blob;
-    const struct curl_blob *key_blob = ssl_config->key_blob;
-    int file_type = wssl_do_file_type(ssl_config->cert_type);
+    const struct curl_blob *key_blob = ssl_config->primary.key_blob;
+    int file_type = wssl_do_file_type(ssl_config->primary.cert_type);
     int rc;
 
     switch(file_type) {
@@ -971,7 +971,7 @@ static CURLcode client_certificate(struct Curl_easy *data,
       key_file = cert_file;
     }
     else
-      file_type = wssl_do_file_type(ssl_config->key_type);
+      file_type = wssl_do_file_type(ssl_config->primary.key_type);
 
     rc = key_blob ?
       wolfSSL_CTX_use_PrivateKey_buffer(wctx->ssl_ctx, key_blob->data,
@@ -985,8 +985,8 @@ static CURLcode client_certificate(struct Curl_easy *data,
 #else /* NO_FILESYSTEM */
   if(ssl_config->primary.cert_blob) {
     const struct curl_blob *cert_blob = ssl_config->primary.cert_blob;
-    const struct curl_blob *key_blob = ssl_config->key_blob;
-    int file_type = wssl_do_file_type(ssl_config->cert_type);
+    const struct curl_blob *key_blob = ssl_config->primary.key_blob;
+    int file_type = wssl_do_file_type(ssl_config->primary.cert_type);
     int rc;
 
     switch(file_type) {
@@ -1011,7 +1011,7 @@ static CURLcode client_certificate(struct Curl_easy *data,
     if(!key_blob)
       key_blob = cert_blob;
     else
-      file_type = wssl_do_file_type(ssl_config->key_type);
+      file_type = wssl_do_file_type(ssl_config->primary.key_type);
 
     if(wolfSSL_CTX_use_PrivateKey_buffer(wctx->ssl_ctx, key_blob->data,
                                          (long)key_blob->len,
