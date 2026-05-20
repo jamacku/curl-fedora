@@ -212,7 +212,7 @@ test1580 test1581 test1582 test1583 test1584 test1585 \
 test1588 \
 test1629 \
 \
-test1647 \
+test1647 test1648 \
 \
 test1590 test1591 test1592 test1593 test1594 test1595 test1596 test1597 \
 test1598 test1599 test1600 test1601 test1602 test1603 test1604 test1605 \
