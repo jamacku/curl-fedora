@@ -864,27 +864,12 @@ struct auth {
                    should be RFC compliant */
 };
 
-#ifdef USE_NGHTTP2
-struct Curl_data_prio_node {
-  struct Curl_data_prio_node *next;
-  struct Curl_easy *data;
-};
-#endif
-
 /**
  * Priority information for an easy handle in relation to others
  * on the same connection.
  */
 struct Curl_data_priority {
-#ifdef USE_NGHTTP2
-  /* tree like dependencies only implemented in nghttp2 */
-  struct Curl_easy *parent;
-  struct Curl_data_prio_node *children;
-#endif
   int weight;
-#ifdef USE_NGHTTP2
-  BIT(exclusive);
-#endif
 };
 
 /* Timers */

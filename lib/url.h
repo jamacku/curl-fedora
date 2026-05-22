@@ -111,12 +111,4 @@ void Curl_data_priority_clear_state(struct Curl_easy *data);
 #define Curl_data_priority_clear_state(x)
 #endif /* USE_HTTP2 || USE_HTTP3 */
 
-#ifdef USE_NGHTTP2
-CURLcode Curl_data_priority_add_child(struct Curl_easy *parent,
-                                      struct Curl_easy *child,
-                                      bool exclusive);
-#else
-#define Curl_data_priority_add_child(x, y, z) CURLE_NOT_BUILT_IN
-#endif
-
 #endif /* HEADER_CURL_URL_H */
