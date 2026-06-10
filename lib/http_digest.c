@@ -98,7 +98,38 @@ CURLcode Curl_output_digest(struct Curl_easy *data,
 #endif
   }
   else {
+    bool flush = FALSE;
     digest = &data->state.digest;
+
+    if(digest->origin_host &&
+       (!curl_strequal(data->conn->host.name, digest->origin_host) ||
+        data->conn->remote_port != digest->origin_port))
+      flush = TRUE;
+    else if(digest->user &&
+            Curl_timestrcmp(data->state.aptr.user ?
+                            data->state.aptr.user : "",
+                            digest->user))
+      flush = TRUE;
+    else if(digest->passwd &&
+            Curl_timestrcmp(data->state.aptr.passwd ?
+                            data->state.aptr.passwd : "",
+                            digest->passwd))
+      flush = TRUE;
+
+    if(flush)
+      /* flush host Digest state */
+      Curl_auth_digest_cleanup(digest);
+
+    Curl_safefree(digest->origin_host);
+    digest->origin_host = curlx_strdup(data->conn->host.name);
+    digest->origin_port = data->conn->remote_port;
+    Curl_safefree(digest->user);
+    digest->user = curlx_strdup(data->state.aptr.user ?
+                                data->state.aptr.user : "");
+    Curl_safefree(digest->passwd);
+    digest->passwd = curlx_strdup(data->state.aptr.passwd ?
+                                  data->state.aptr.passwd : "");
+
     allocuserpwd = &data->state.aptr.userpwd;
     userp = data->state.aptr.user;
     passwdp = data->state.aptr.passwd;

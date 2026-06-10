@@ -291,14 +291,14 @@ struct ssl_general_config {
 #ifndef CURL_DISABLE_DIGEST_AUTH
 /* Struct used for Digest challenge-response authentication */
 struct digestdata {
+  char *origin_host;
+  int origin_port;
+  char *user;
+  char *passwd;
 #ifdef USE_WINDOWS_SSPI
   BYTE *input_token;
   size_t input_token_len;
   CtxtHandle *http_context;
-  /* copy of user/passwd used to make the identity for http_context.
-     either may be NULL. */
-  char *user;
-  char *passwd;
 #else
   char *nonce;
   char *cnonce;

@@ -1013,6 +1013,10 @@ CURLcode Curl_auth_create_digest_http_message(struct Curl_easy *data,
  */
 void Curl_auth_digest_cleanup(struct digestdata *digest)
 {
+  Curl_safefree(digest->origin_host);
+  digest->origin_port = 0;
+  Curl_safefree(digest->user);
+  Curl_safefree(digest->passwd);
   Curl_safefree(digest->nonce);
   Curl_safefree(digest->cnonce);
   Curl_safefree(digest->realm);
