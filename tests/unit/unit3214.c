@@ -27,6 +27,11 @@
 
 static void checksize(const char *name, size_t size, size_t allowed)
 {
+  /* Some platforms, e.g., CHERI, have 128-bit pointers. Allow structs to be
+     double the size of what we would typically expect. */
+  if(sizeof(void *) > 8)
+    allowed *= sizeof(void *) / 8;
+
   if(size > allowed) {
     fprintf(stderr, "BAD: struct %s is %d bytes, allowed to be %d",
             name, (int)size, (int)allowed);
@@ -39,9 +44,10 @@ static void checksize(const char *name, size_t size, size_t allowed)
   }
 }
 
-/* the maximum sizes we allow specific structs to grow to */
+/* The maximum sizes we allow specific structs to grow to.
+   These sizes were chosen with platforms with 64-bit pointers in mind. */
 #define MAX_CURL_EASY           5800
-#define MAX_CONNECTDATA         1300
+#define MAX_CONNECTDATA         1400
 #define MAX_CURL_MULTI          750
 #define MAX_CURL_HTTPPOST       112
 #define MAX_CURL_SLIST          16
