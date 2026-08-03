@@ -61,7 +61,7 @@ static CURLcode test_unit1304(char *arg)
   Curl_netrc_init(&store);
   result = Curl_parsenetrc(&store,
                            "example.com", &login, &password, arg);
-  fail_unless(result == 0, "Host should have been found");
+  fail_unless(result == 1, "expected no match");
   abort_unless(password == NULL, "password is not NULL!");
   Curl_netrc_cleanup(&store);
 
@@ -84,7 +84,7 @@ static CURLcode test_unit1304(char *arg)
   Curl_netrc_init(&store);
   result = Curl_parsenetrc(&store,
                            "example.com", &login, &password, arg);
-  fail_unless(result == 0, "Host should have been found");
+  fail_unless(result == 1, "expected no match");
   abort_unless(password == NULL, "password is not NULL!");
   Curl_netrc_cleanup(&store);
 
@@ -96,7 +96,7 @@ static CURLcode test_unit1304(char *arg)
   Curl_netrc_init(&store);
   result = Curl_parsenetrc(&store,
                            "example.com", &login, &password, arg);
-  fail_unless(result == 0, "Host should have been found");
+  fail_unless(result == 1, "expected no match");
   abort_unless(password == NULL, "password is not NULL!");
   Curl_netrc_cleanup(&store);
 
@@ -172,6 +172,23 @@ static CURLcode test_unit1304(char *arg)
   abort_unless(login != NULL, "returned NULL!");
   fail_unless(strncmp(login, "none", 4) == 0, "login should be 'none'");
   Curl_netrc_cleanup(&store);
+
+  /*
+   * Test for the last host where we do not want to see the password
+   * if the login does not match.
+   */
+  free(password);
+  password = NULL;
+  free(login);
+  login = (char *)CURL_UNCONST("hilarious");
+  Curl_netrc_init(&store);
+  result = Curl_parsenetrc(&store,
+                           "curl.example.com", &login, &password, arg);
+  fail_unless(result == 1, "expect no match");
+  abort_unless(password == NULL, "password must be NULL");
+  Curl_netrc_cleanup(&store);
+
+  login = NULL;
 
   UNITTEST_END(t1304_stop(&password, &login))
 }
