@@ -761,7 +761,7 @@ static CURLcode easy_perform(struct Curl_easy *data, bool events)
     Curl_detach_connection(data);
     s = Curl_getconnectinfo(data, &c);
     if((s != CURL_SOCKET_BAD) && c) {
-      Curl_conn_terminate(data, c, TRUE);
+      Curl_conn_close(data, c, TRUE);
     }
     DEBUGASSERT(!data->conn);
   }
@@ -977,7 +977,6 @@ CURL *curl_easy_duphandle(CURL *curl)
 
   /* the connection pool is setup on demand */
   outcurl->state.lastconnect_id = -1;
-  outcurl->state.recent_conn_id = -1;
   outcurl->id = -1;
   outcurl->mid = UINT32_MAX;
   outcurl->master_mid = UINT32_MAX;
@@ -1110,7 +1109,7 @@ void curl_easy_reset(CURL *curl)
 
   data->progress.hide = TRUE;
   data->state.current_speed = -1; /* init to negative == impossible */
-  data->state.recent_conn_id = -1; /* clear remembered connection id */
+  data->state.lastconnect_id = -1; /* clear remembered connection id */
 
   /* zero out authentication data: */
   memset(&data->state.authhost, 0, sizeof(struct auth));
@@ -1243,7 +1242,7 @@ CURLcode curl_easy_recv(CURL *curl, void *buffer, size_t buflen, size_t *n)
   if(!data->conn)
     /* on first invoke, the transfer has been detached from the connection and
        needs to be reattached */
-    Curl_attach_connection(data, c);
+    Curl_attach_connection(data, c, TRUE);
 
   *n = 0;
   return Curl_conn_recv(data, FIRSTSOCKET, buffer, buflen, n);
@@ -1262,7 +1261,7 @@ CURLcode Curl_connect_only_attach(struct Curl_easy *data)
   if(!data->conn)
     /* on first invoke, the transfer has been detached from the connection and
        needs to be reattached */
-    Curl_attach_connection(data, c);
+    Curl_attach_connection(data, c, TRUE);
 
   return CURLE_OK;
 }
@@ -1288,7 +1287,7 @@ CURLcode Curl_senddata(struct Curl_easy *data, const void *buffer,
   if(!data->conn)
     /* on first invoke, the transfer has been detached from the connection and
        needs to be reattached */
-    Curl_attach_connection(data, c);
+    Curl_attach_connection(data, c, TRUE);
 
   sigpipe_ignore(data, &sigpipe_ctx);
   result = Curl_conn_send(data, FIRSTSOCKET, buffer, buflen, FALSE, n);

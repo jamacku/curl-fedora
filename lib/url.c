@@ -469,7 +469,6 @@ CURLcode Curl_open(struct Curl_easy **curl)
   data->magic = CURLEASY_MAGIC_NUMBER;
   /* most recent connection is not yet defined */
   data->state.lastconnect_id = -1;
-  data->state.recent_conn_id = -1;
   /* and not assigned an id yet */
   data->id = -1;
   data->mid = UINT32_MAX;
@@ -622,14 +621,14 @@ bool Curl_conn_seems_dead(struct connectdata *conn,
       /* The protocol has a special method for checking the state of the
          connection. Use it to check if the connection is dead. */
       /* briefly attach the connection for the check */
-      Curl_attach_connection(data, conn);
+      Curl_attach_connection(data, conn, FALSE);
       dead = conn->scheme->run->connection_is_dead(data, conn);
       Curl_detach_connection(data);
     }
     else {
       bool input_pending = FALSE;
 
-      Curl_attach_connection(data, conn);
+      Curl_attach_connection(data, conn, FALSE);
       dead = !Curl_conn_is_alive(data, conn, &input_pending);
       if(input_pending) {
         /* For reuse, we want a "clean" connection state. This includes
@@ -665,7 +664,7 @@ CURLcode Curl_conn_upkeep(struct Curl_easy *data,
     return result;
 
   /* briefly attach for action */
-  Curl_attach_connection(data, conn);
+  Curl_attach_connection(data, conn, FALSE);
   result = Curl_conn_keep_alive(data, conn, FIRSTSOCKET);
   Curl_detach_connection(data);
 
@@ -690,6 +689,7 @@ struct url_conn_match {
   struct connectdata *found;
   struct Curl_easy *data;
   struct connectdata *needle;
+  struct curltime now;
   BIT(may_multiplex);
   BIT(want_ntlm_http);
   BIT(want_proxy_ntlm_http);
@@ -1002,27 +1002,54 @@ static bool url_match_ssl_config(struct connectdata *conn,
   return TRUE;
 }
 
+#if defined(USE_SPNEGO) || defined(USE_NTLM)
+static bool url_allow_sspi_empty_creds(struct Curl_creds *conn_creds,
+                                       struct Curl_easy *data,
+                                       struct connectdata *conn)
+{
+#ifdef USE_WINDOWS_SSPI
+  /* Empty user: SSPI on Windows can make use of an "ambient"
+   * user from a "SecurityToken" associated with the current thread or
+   * process. This token can be switched at any time. We are therefore
+   * not able to find out reliably what token the connection really
+   * used, nor what token in the next connect attempt will use.
+   * To avoid TOCTOU attacks, do not reuse on empty credentials
+   * UNLESS this connection is the one used by this transfer before. */
+  if(!Curl_creds_has_user(conn_creds) &&
+     (data->state.lastconnect_id != conn->connection_id))
+    return FALSE;
+#else
+  (void)conn_creds;
+  (void)data;
+  (void)conn;
+#endif
+  return TRUE;
+}
+#endif /* USE_SPNEGO || USE_NTLM */
+
 #ifdef USE_NTLM
 static bool url_match_auth_ntlm(struct connectdata *conn,
                                 struct url_conn_match *m)
 {
-  /* If we are looking for an HTTP+NTLM connection, check if this is
-     already authenticating with the right credentials. If not, keep
-     looking so that we can reuse NTLM connections if
-     possible. (Especially we must not reuse the same connection if
-     partway through a handshake!) */
-  if(m->want_ntlm_http) {
+  if(conn->http_ntlm_state != NTLMSTATE_NONE) {
+    /* Connection is using NTLM. We cannot reuse if transfer
+     * has different Auth input parameters.
+     * To avoid TOCTOU attacks, do not reuse on empty credentials. */
+    if(!m->want_ntlm_http ||
+       !Curl_creds_has_user(conn->creds) ||
+       !Curl_creds_same(conn->creds, m->data->state.creds) ||
+       !Curl_peer_equal(conn->creds_origin, m->data->state.origin))
+      return FALSE;
+    if(!url_allow_sspi_empty_creds(conn->creds, m->data, conn))
+      return FALSE;
+  }
+  else if(m->want_ntlm_http) {
+    /* Transfer wants NTLM, connection is not using it.
+     * Do not reuse when connection has credentials and they differ. */
     if(conn->creds &&
        (!Curl_creds_same(conn->creds, m->data->state.creds) ||
-        !Curl_peer_equal(conn->creds_origin, m->data->state.origin))) {
-      /* connection credentials in play and not the same or not for the
-       * same origin. */
+        !Curl_peer_equal(conn->creds_origin, m->data->state.origin)))
       return FALSE;
-    }
-  }
-  else if(conn->http_ntlm_state != NTLMSTATE_NONE) {
-    /* Connection is using NTLM auth but we do not want NTLM */
-    return FALSE;
   }
 
 #ifndef CURL_DISABLE_PROXY
@@ -1069,23 +1096,36 @@ static bool url_match_auth_ntlm(struct connectdata *conn,
 static bool url_match_auth_nego(struct connectdata *conn,
                                 struct url_conn_match *m)
 {
-  /* If we are looking for an HTTP+Negotiate connection, check if this is
-     already authenticating with the right credentials. If not, keep looking
-     so that we can reuse Negotiate connections if possible. */
-  if(m->want_nego_http) {
+  if(conn->http_negotiate_state != GSS_AUTHNONE) {
+    /* Connection is using Negotiate. We cannot reuse if transfer
+     * has different Auth input parameters. */
+    if(!m->want_nego_http ||
+       !Curl_creds_same(conn->creds, m->data->state.creds) ||
+       !Curl_peer_equal(conn->creds_origin, m->data->state.origin))
+      return FALSE;
+    if(!url_allow_sspi_empty_creds(conn->creds, m->data, conn))
+      return FALSE;
+  }
+  else if(m->want_nego_http) {
+    /* Transfer wants Negotiate, connection is not using it.
+     * Do not reuse when connection has credentials and they differ. */
     if(conn->creds &&
        (!Curl_creds_same(conn->creds, m->data->state.creds) ||
         !Curl_peer_equal(conn->creds_origin, m->data->state.origin)))
       return FALSE;
   }
-  else if(conn->http_negotiate_state != GSS_AUTHNONE) {
-    /* Connection is using Negotiate auth but we do not want Negotiate */
-    return FALSE;
-  }
 
 #ifndef CURL_DISABLE_PROXY
   /* Same for Proxy Negotiate authentication */
-  if(m->want_proxy_nego_http) {
+  if(conn->proxy_negotiate_state != GSS_AUTHNONE) {
+    if(!m->want_proxy_nego_http ||
+       !Curl_creds_same(m->needle->http_proxy.creds, conn->http_proxy.creds))
+      return FALSE;
+    if(!url_allow_sspi_empty_creds(m->needle->http_proxy.creds,
+                                   m->data, conn))
+      return FALSE;
+  }
+  else if(m->want_proxy_nego_http) {
     /* Both conn->http_proxy.user and conn->http_proxy.passwd can be
      * NULL */
     if(!conn->http_proxy.creds)
@@ -1093,10 +1133,6 @@ static bool url_match_auth_nego(struct connectdata *conn,
 
     if(!Curl_creds_same(m->needle->http_proxy.creds, conn->http_proxy.creds))
       return FALSE;
-  }
-  else if(conn->proxy_negotiate_state != GSS_AUTHNONE) {
-    /* Proxy connection is using Negotiate auth but we do not want Negotiate */
-    return FALSE;
   }
 #endif
   if(m->want_nego_http || m->want_proxy_nego_http) {
@@ -1172,9 +1208,13 @@ static bool url_match_conn(struct connectdata *conn, void *userdata)
   if(!url_match_multiplex_limits(conn, m))
     return FALSE;
 
-  if(!CONN_INUSE(conn) && Curl_conn_seems_dead(conn, m->data)) {
-    /* remove and disconnect. */
-    Curl_conn_terminate(m->data, conn, FALSE);
+  /* If we are going to pick an idle connection, do an extra
+   * health check before we reuse it. */
+  if(!CONN_INUSE(conn) &&
+     !Curl_cpool_conn_seems_healthy(conn, m->data, &m->now)) {
+    infof(m->data, "Connection %" FMT_OFF_T " seems to be dead, terminating",
+          conn->connection_id);
+    Curl_conn_close(m->data, conn, FALSE);
     return FALSE;
   }
 
@@ -1189,7 +1229,7 @@ static bool url_match_result(void *userdata)
   if(match->found) {
     /* Attach it now while still under lock, so the connection does
      * no longer appear idle and can be reaped. */
-    Curl_attach_connection(match->data, match->found);
+    Curl_attach_connection(match->data, match->found, TRUE);
     return TRUE;
   }
   else if(match->seen_single_use_conn && !match->seen_multiplex_conn) {
@@ -1220,14 +1260,19 @@ static bool url_attach_existing(struct Curl_easy *data,
                                 struct connectdata *needle,
                                 bool *waitpipe)
 {
+  struct cpool *cpool = Curl_cpool_get_instance(data);
   struct url_conn_match match;
   bool success;
 
   DEBUGASSERT(!data->conn);
+
   memset(&match, 0, sizeof(match));
   match.data = data;
   match.needle = needle;
+  match.now = *Curl_pgrs_now(data);
   match.may_multiplex = xfer_may_multiplex(data, needle);
+
+  Curl_cpool_prune_dead(cpool, data);
 
 #ifdef USE_NTLM
   match.want_ntlm_http =
@@ -2351,9 +2396,9 @@ static CURLcode url_find_or_create_conn(struct Curl_easy *data)
       goto out;
 
     /* Setup a "faked" transfer that will do nothing */
-    Curl_attach_connection(data, needle);
+    result = Curl_cpool_add(data, needle);
+    Curl_attach_connection(data, needle, TRUE);
     needle = NULL;
-    result = Curl_cpool_add(data, data->conn);
     if(!result) {
       /* Setup whatever necessary for a resumed transfer */
       result = setup_range(data);
@@ -2378,7 +2423,7 @@ static CURLcode url_find_or_create_conn(struct Curl_easy *data)
     goto out;
 
   /* Get rid of any dead connections so limit are easier kept. */
-  Curl_cpool_prune_dead(data);
+  Curl_cpool_prune_dead(Curl_cpool_get_instance(data), data);
 
   /*************************************************************
    * Reuse of existing connection is not allowed when
@@ -2458,11 +2503,12 @@ static CURLcode url_find_or_create_conn(struct Curl_easy *data)
       DEBUGF(curl_mfprintf(stderr, "Error: init connection SSL config\n"));
       goto out;
     }
-    /* attach it and no longer own it */
-    Curl_attach_connection(data, needle);
-    needle = NULL;
 
-    result = Curl_cpool_add(data, data->conn);
+    /* Add needle to conn pool, which assigns the connection id.
+     * Attach regardless of result, for correct handling. */
+    result = Curl_cpool_add(data, needle);
+    Curl_attach_connection(data, needle, TRUE);
+    needle = NULL;
     if(result)
       goto out;
 
@@ -2573,7 +2619,7 @@ out:
     /* We are not allowed to return failure with memory left allocated in the
        connectdata struct, free those here */
     Curl_detach_connection(data);
-    Curl_conn_terminate(data, conn, TRUE);
+    Curl_conn_close(data, conn, TRUE);
   }
 
   return result;
@@ -2644,6 +2690,31 @@ void Curl_conn_meta_remove(struct connectdata *conn, const char *key)
 void *Curl_conn_meta_get(struct connectdata *conn, const char *key)
 {
   return Curl_hash_pick(&conn->meta_hash, CURL_UNCONST(key), strlen(key) + 1);
+}
+
+struct Curl_easy *Curl_get_admin(struct Curl_easy *data)
+{
+  struct Curl_easy *admin;
+
+  if(!data->mid) /* already an admin handle */
+    admin = data;
+  else if(data->multi)
+    admin = data->multi->admin;
+  else if(data->multi_easy)
+    admin = data->multi_easy->admin;
+  else {
+    DEBUGASSERT(0); /* we do not want this. does it happen? */
+    admin = data;
+  }
+  if(admin != data) {
+    admin->set.conn_max_idle_ms = data->set.conn_max_idle_ms;
+    admin->set.conn_max_age_ms = data->set.conn_max_age_ms;
+    admin->set.upkeep_interval_ms = data->set.upkeep_interval_ms;
+    admin->set.timeout = data->set.timeout;
+    admin->set.server_response_timeout = data->set.server_response_timeout;
+    admin->set.no_signal = data->set.no_signal;
+  }
+  return admin;
 }
 
 CURLcode Curl_1st_fatal(CURLcode r1, CURLcode r2)
