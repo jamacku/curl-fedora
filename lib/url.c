@@ -589,6 +589,8 @@ void Curl_conn_free(struct Curl_easy *data, struct connectdata *conn)
   Curl_safefree(conn->sasl_authzid);
   Curl_safefree(conn->options);
   Curl_safefree(conn->oauth_bearer);
+  Curl_safefree(conn->sasl_service);
+  Curl_safefree(conn->proxy_sasl_service);
   Curl_safefree(conn->host.rawalloc); /* hostname buffer */
   Curl_safefree(conn->conn_to_host.rawalloc); /* hostname buffer */
   Curl_safefree(conn->hostname_resolve);
@@ -1170,7 +1172,8 @@ static bool url_match_auth_ntlm(struct connectdata *conn,
      partway through a handshake!) */
   if(m->want_ntlm_http) {
     if(Curl_timestrcmp(m->needle->user, conn->user) ||
-       Curl_timestrcmp(m->needle->passwd, conn->passwd)) {
+       Curl_timestrcmp(m->needle->passwd, conn->passwd) ||
+       Curl_timestrcmp(m->needle->sasl_service, conn->sasl_service)) {
 
       /* we prefer a credential match, but this is at least a connection
          that can be reused and "upgraded" to NTLM */
@@ -1195,7 +1198,9 @@ static bool url_match_auth_ntlm(struct connectdata *conn,
     if(Curl_timestrcmp(m->needle->http_proxy.user,
                        conn->http_proxy.user) ||
        Curl_timestrcmp(m->needle->http_proxy.passwd,
-                       conn->http_proxy.passwd))
+                       conn->http_proxy.passwd) ||
+       Curl_timestrcmp(m->needle->proxy_sasl_service,
+                       conn->proxy_sasl_service))
       return FALSE;
   }
   else if(conn->proxy_ntlm_state != NTLMSTATE_NONE) {
@@ -1236,7 +1241,8 @@ static bool url_match_auth_nego(struct connectdata *conn,
      so that we can reuse Negotiate connections if possible. */
   if(m->want_nego_http) {
     if(Curl_timestrcmp(m->needle->user, conn->user) ||
-       Curl_timestrcmp(m->needle->passwd, conn->passwd))
+       Curl_timestrcmp(m->needle->passwd, conn->passwd) ||
+       Curl_timestrcmp(m->needle->sasl_service, conn->sasl_service))
       return FALSE;
   }
   else if(conn->http_negotiate_state != GSS_AUTHNONE) {
@@ -1255,7 +1261,9 @@ static bool url_match_auth_nego(struct connectdata *conn,
     if(Curl_timestrcmp(m->needle->http_proxy.user,
                        conn->http_proxy.user) ||
        Curl_timestrcmp(m->needle->http_proxy.passwd,
-                       conn->http_proxy.passwd))
+                       conn->http_proxy.passwd) ||
+       Curl_timestrcmp(m->needle->proxy_sasl_service,
+                       conn->proxy_sasl_service))
       return FALSE;
   }
   else if(conn->proxy_negotiate_state != GSS_AUTHNONE) {
@@ -3595,6 +3603,25 @@ static CURLcode create_conn(struct Curl_easy *data,
       goto out;
     }
   }
+
+  if(data->set.str[STRING_SERVICE_NAME]) {
+    conn->sasl_service = strdup(data->set.str[STRING_SERVICE_NAME]);
+    if(!conn->sasl_service) {
+      result = CURLE_OUT_OF_MEMORY;
+      goto out;
+    }
+  }
+
+#ifndef CURL_DISABLE_PROXY
+  if(data->set.str[STRING_PROXY_SERVICE_NAME]) {
+    conn->proxy_sasl_service =
+      strdup(data->set.str[STRING_PROXY_SERVICE_NAME]);
+    if(!conn->proxy_sasl_service) {
+      result = CURLE_OUT_OF_MEMORY;
+      goto out;
+    }
+  }
+#endif
 
 #ifdef USE_UNIX_SOCKETS
   if(data->set.str[STRING_UNIX_SOCKET_PATH]) {
