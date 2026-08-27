@@ -355,9 +355,9 @@ static bool bad_domain(const char *domain, size_t len)
 static bool invalid_octets(const char *ptr, size_t len)
 {
   const unsigned char *p = (const unsigned char *)ptr;
-  /* Reject all bytes \x01 - \x1f (*except* \x09, TAB) + \x7f */
+  /* Reject all bytes \x01 - \x1f + \x7f */
   while(len && *p) {
-    if(((*p != 9) && (*p < 0x20)) || (*p == 0x7f))
+    if((*p < 0x20) || (*p == 0x7f))
       return TRUE;
     p++;
     len--;
@@ -455,7 +455,7 @@ parse_cookie_header(struct Curl_easy *data,
     struct Curl_str val;
 
     /* we have a <name>=<value> pair or a stand-alone word here */
-    if(!curlx_str_cspn(&ptr, &name, ";\t\r\n=")) {
+    if(!curlx_str_cspn(&ptr, &name, ";\r\n=")) {
       bool sep = FALSE;
       curlx_str_trimblanks(&name);
 
@@ -491,12 +491,7 @@ parse_cookie_header(struct Curl_easy *data,
           return CURLE_OK;
         }
 
-        /* Reject cookies with a TAB inside the value */
-        if(curlx_strlen(&val) &&
-           memchr(curlx_str(&val), '\t', curlx_strlen(&val))) {
-          infof(data, "cookie contains TAB, dropping");
-          return CURLE_OK;
-        }
+        /* TAB is now rejected by invalid_octets() above */
 
         /* Check if we have a reserved prefix set. */
         if(!strncmp("__Secure-", curlx_str(&name), 9))
