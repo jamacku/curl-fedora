@@ -437,9 +437,9 @@ static bool bad_domain(const char *domain, size_t len)
 static bool invalid_octets(const char *ptr)
 {
   const unsigned char *p = (const unsigned char *)ptr;
-  /* Reject all bytes \x01 - \x1f (*except* \x09, TAB) + \x7f */
+  /* Reject all bytes \x01 - \x1f + \x7f */
   while(*p) {
-    if(((*p != 9) && (*p < 0x20)) || (*p == 0x7f))
+    if((*p < 0x20) || (*p == 0x7f))
       return TRUE;
     p++;
   }
@@ -497,7 +497,7 @@ parse_cookie_header(struct Curl_easy *data,
     struct Curl_str val;
 
     /* we have a <name>=<value> pair or a stand-alone word here */
-    if(!curlx_str_cspn(&ptr, &name, ";\t\r\n=")) {
+    if(!curlx_str_cspn(&ptr, &name, ";\r\n=")) {
       bool done = FALSE;
       bool sep = FALSE;
       curlx_str_trimblanks(&name);
