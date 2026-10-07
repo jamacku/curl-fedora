@@ -3,6 +3,7 @@
 <keywords>
 FTP
 RETR
+flaky
 multi
 LIST
 DELAY
