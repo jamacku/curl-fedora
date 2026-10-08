@@ -31,6 +31,7 @@
 #include "hsts.h"
 #include "url.h"
 
+
 CURLSH *curl_share_init(void)
 {
   struct Curl_share *share = curlx_calloc(1, sizeof(struct Curl_share));
@@ -128,7 +129,7 @@ CURLSHcode curl_share_setopt(CURLSH *sh, CURLSHoption option, ...)
     case CURL_LOCK_DATA_CONNECT:
       /* It is safe to set this option several times on a share. */
       if(!share->cpool.initialised) {
-        Curl_cpool_init(&share->cpool, share->admin, share, 103);
+        Curl_cpool_init(&share->cpool, share, 103);
       }
       break;
 
@@ -236,7 +237,7 @@ CURLSHcode curl_share_cleanup(CURLSH *sh)
   }
 
   if(share->specifier & (1 << CURL_LOCK_DATA_CONNECT)) {
-    Curl_cpool_destroy(&share->cpool);
+    Curl_cpool_destroy(&share->cpool, share->admin);
   }
 
   Curl_dnscache_destroy(&share->dnscache);
@@ -267,11 +268,11 @@ CURLSHcode curl_share_cleanup(CURLSH *sh)
   return CURLSHE_OK;
 }
 
-CURLSHcode Curl_share_lock(struct Curl_easy *data, curl_lock_data type,
-                           curl_lock_access accesstype)
+CURLSHcode Curl_share_lock_share(struct Curl_share *share,
+                                 struct Curl_easy *data,
+                                 curl_lock_data type,
+                                 curl_lock_access accesstype)
 {
-  struct Curl_share *share = data->share;
-
   if(!share)
     return CURLSHE_INVALID;
 
@@ -284,10 +285,16 @@ CURLSHcode Curl_share_lock(struct Curl_easy *data, curl_lock_data type,
   return CURLSHE_OK;
 }
 
-CURLSHcode Curl_share_unlock(struct Curl_easy *data, curl_lock_data type)
+CURLSHcode Curl_share_lock(struct Curl_easy *data, curl_lock_data type,
+                           curl_lock_access accesstype)
 {
-  struct Curl_share *share = data->share;
+  return Curl_share_lock_share(data->share, data, type, accesstype);
+}
 
+CURLSHcode Curl_share_unlock_share(struct Curl_share *share,
+                                   struct Curl_easy *data,
+                                   curl_lock_data type)
+{
   if(!share)
     return CURLSHE_INVALID;
 
@@ -297,4 +304,9 @@ CURLSHcode Curl_share_unlock(struct Curl_easy *data, curl_lock_data type)
   }
 
   return CURLSHE_OK;
+}
+
+CURLSHcode Curl_share_unlock(struct Curl_easy *data, curl_lock_data type)
+{
+  return Curl_share_unlock_share(data->share, data, type);
 }

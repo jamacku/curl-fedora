@@ -75,6 +75,12 @@ const struct Curl_handler *Curl_get_scheme_handler(const char *scheme);
 const struct Curl_handler *Curl_getn_scheme_handler(const char *scheme,
                                                     size_t len);
 
+/* Get an admin handle for internal operations from the given
+ * easy handle, if possible. The admin handle inherits certain
+ * properties from `data`. If no admin handle is available (not multi
+ * or share attached), the easy handle itself is returned. */
+struct Curl_easy *Curl_get_admin(struct Curl_easy *data);
+
 #define CURL_DEFAULT_PROXY_PORT 1080 /* default proxy port unless specified */
 #define CURL_DEFAULT_HTTPS_PROXY_PORT 443 /* default https proxy port unless
                                              specified */

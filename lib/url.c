@@ -482,7 +482,7 @@ CURLcode Curl_open(struct Curl_easy **curl)
   data->magic = CURLEASY_MAGIC_NUMBER;
   /* most recent connection is not yet defined */
   data->state.lastconnect_id = -1;
-  data->state.recent_conn_id = -1;
+  data->state.lastconnect_id = -1;
   /* and not assigned an id yet */
   data->id = -1;
   data->mid = UINT32_MAX;
@@ -658,7 +658,7 @@ bool Curl_conn_seems_dead(struct connectdata *conn,
 
       /* briefly attach the connection to this transfer for the purpose of
          checking it */
-      Curl_attach_connection(data, conn);
+      Curl_attach_connection(data, conn, FALSE);
 
       state = conn->handler->connection_check(data, conn, CONNCHECK_ISDEAD);
       dead = (state & CONNRESULT_DEAD);
@@ -668,7 +668,7 @@ bool Curl_conn_seems_dead(struct connectdata *conn,
     else {
       bool input_pending = FALSE;
 
-      Curl_attach_connection(data, conn);
+      Curl_attach_connection(data, conn, FALSE);
       dead = !Curl_conn_is_alive(data, conn, &input_pending);
       if(input_pending) {
         /* For reuse, we want a "clean" connection state. The includes
@@ -704,7 +704,7 @@ CURLcode Curl_conn_upkeep(struct Curl_easy *data,
     return result;
 
   /* briefly attach for action */
-  Curl_attach_connection(data, conn);
+  Curl_attach_connection(data, conn, FALSE);
   if(conn->handler->connection_check) {
     /* Do a protocol-specific keepalive check on the connection. */
     unsigned int rc;
@@ -1306,7 +1306,7 @@ static bool url_match_result(bool result, void *userdata)
   if(match->found) {
     /* Attach it now while still under lock, so the connection does
      * no longer appear idle and can be reaped. */
-    Curl_attach_connection(match->data, match->found);
+    Curl_attach_connection(match->data, match->found, TRUE);
     return TRUE;
   }
   else if(match->seen_single_use_conn && !match->seen_multiplex_conn) {
@@ -3656,8 +3656,8 @@ static CURLcode create_conn(struct Curl_easy *data,
       goto out;
 
     /* Setup a "faked" transfer that will do nothing */
-    Curl_attach_connection(data, conn);
     result = Curl_cpool_add(data, conn);
+    Curl_attach_connection(data, conn, TRUE);
     if(!result) {
       /* Setup whatever necessary for a resumed transfer */
       result = setup_range(data);
@@ -3688,7 +3688,10 @@ static CURLcode create_conn(struct Curl_easy *data,
   if(result)
     goto out;
 
-  Curl_cpool_prune_dead(data);
+  {
+    struct cpool *cpool = Curl_cpool_get_instance(data);
+    Curl_cpool_prune_dead(cpool, data);
+  }
 
   /*************************************************************
    * Check the current list of connections to see if we can
@@ -3795,8 +3798,8 @@ static CURLcode create_conn(struct Curl_easy *data,
         goto out;
       }
 
-      Curl_attach_connection(data, conn);
       result = Curl_cpool_add(data, conn);
+      Curl_attach_connection(data, conn, TRUE);
       if(result)
         goto out;
     }
@@ -4019,6 +4022,31 @@ void *Curl_conn_meta_get(struct connectdata *conn, const char *key)
 CURLcode Curl_1st_err(CURLcode r1, CURLcode r2)
 {
   return r1 ? r1 : r2;
+}
+
+struct Curl_easy *Curl_get_admin(struct Curl_easy *data)
+{
+  struct Curl_easy *admin;
+
+  if(!data->mid) /* already an admin handle */
+    admin = data;
+  else if(data->multi)
+    admin = data->multi->admin;
+  else if(data->multi_easy)
+    admin = data->multi_easy->admin;
+  else {
+    DEBUGASSERT(0); /* we do not want this. does it happen? */
+    admin = data;
+  }
+  if(admin != data) {
+    admin->set.conn_max_idle_ms = data->set.conn_max_idle_ms;
+    admin->set.conn_max_age_ms = data->set.conn_max_age_ms;
+    admin->set.upkeep_interval_ms = data->set.upkeep_interval_ms;
+    admin->set.timeout = data->set.timeout;
+    admin->set.server_response_timeout = data->set.server_response_timeout;
+    admin->set.no_signal = data->set.no_signal;
+  }
+  return admin;
 }
 
 CURLcode Curl_1st_fatal(CURLcode r1, CURLcode r2)
