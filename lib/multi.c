@@ -712,18 +712,20 @@ static CURLcode multi_done(struct Curl_easy *data,
   /* Make sure that transfer client writes are really done now. */
   result = Curl_1st_err(result, Curl_xfer_write_done(data, premature));
 
-  /* Inform connection filters that this transfer is done */
-  Curl_conn_ev_data_done(data, premature);
-
-  process_pending_handles(data->multi); /* connection / multiplex */
-
   if(!result)
     result = Curl_req_done(&data->req, data, premature);
+
+  /* Inform connection filters that this transfer is done and they
+   * need to give up any references to `data`. */
+  Curl_conn_ev_data_done(data, premature);
 
   /* Under the potential connection pool's share lock, decide what to
    * do with the transfer's connection. */
   mdctx.premature = premature;
   Curl_cpool_do_locked(data, data->conn, multi_done_locked, &mdctx);
+
+  if(data->multi)
+    process_pending_handles(data->multi); /* connection / multiplex */
 
   /* flush the netrc cache */
   Curl_netrc_cleanup(&data->state.netrc);
