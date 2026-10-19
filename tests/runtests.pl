@@ -146,6 +146,7 @@ my %enabled_keywords;   # key words of tests to run
 my %disabled;           # disabled test cases
 my %ignored;            # ignored results of test cases
 my %ignoretestcodes;    # if test results are to be ignored
+my %may_retry;          # tests we want to retry on failure
 
 my @global_strip_stderr;  # global patterns added to stripfile before stderr check
 my @global_strip_file;    # global patterns added to stripfile before file check
@@ -829,6 +830,8 @@ sub checksystemfeatures {
     }
     close($manh);
 
+    $feature{"may-retry"} = 1;
+    $feature{"may-retry-on-valgrind"} = 1;
     $feature{"unittest"} = 1;
     $feature{"nghttpx"} = !!$ENV{'NGHTTPX'};
     $feature{"nghttpx-h3"} = !!$nghttpx_h3;
@@ -1058,6 +1061,7 @@ sub singletest_shouldrun {
     my $why;   # why the test is not run
     my $errorreturncode = 1; # 1 means normal error, 2 means ignored error
     my @what;  # what features are needed
+    my $may_retry_candidate;
 
     if($disttests !~ /test$testnum(\W|\z)/ ) {
         logmsg "Warning: test$testnum not present in tests/data/Makefile.am\n";
@@ -1090,6 +1094,9 @@ sub singletest_shouldrun {
     for(@what) {
         my $f = $_;
         $f =~ s/\s//g;
+
+        $may_retry_candidate |= ($f =~ /^(flaky|may-retry|timing-dependent|with-server)$/);
+        $may_retry_candidate |= ($f =~ /^may-retry-on-valgrind$/) if($valgrind);
 
         if($f =~ /^([^!].*)$/) {
             if($feature{$1}) {
@@ -1186,6 +1193,10 @@ sub singletest_shouldrun {
                 }
             }
         }
+    }
+
+    if(!$why && $may_retry_candidate) {
+        $may_retry{$testnum} = 1;
     }
 
     if($why && checktest("${TESTDIR}/test${testnum}")) {
@@ -3178,7 +3189,7 @@ while(1) {
                         }
                         else {
                             # make another attempt to counteract flaky failures
-                            if($retry_left > 0) {
+                            if($may_retry{$testnum} && $retry_left > 0) {
                                 $retry_left--;
                                 $retry_done++;
                                 $total--;
