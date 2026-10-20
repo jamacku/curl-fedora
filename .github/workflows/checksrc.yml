@@ -11,6 +11,8 @@ name: 'Source'
     branches:
       - master
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'
@@ -22,6 +24,8 @@ name: 'Source'
   pull_request:
     branches:
       - master
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'
