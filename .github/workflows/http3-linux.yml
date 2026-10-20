@@ -9,6 +9,8 @@ name: 'Linux HTTP/3'
     branches:
       - master
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'
@@ -20,6 +22,8 @@ name: 'Linux HTTP/3'
   pull_request:
     branches:
       - master
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'

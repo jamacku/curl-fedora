@@ -9,6 +9,8 @@ name: 'Linux'
     branches:
       - master
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'
@@ -19,6 +21,8 @@ name: 'Linux'
   pull_request:
     branches:
       - master
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'

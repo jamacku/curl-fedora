@@ -12,6 +12,8 @@ name: 'Docs'
     branches:
       - master
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths:
       - '.github/workflows/checkdocs.yml'
       - '.github/scripts/**'
@@ -21,6 +23,8 @@ name: 'Docs'
   pull_request:
     branches:
       - master
+      - 'rawhide'
+      - 'f*'
     paths:
       - '.github/workflows/checkdocs.yml'
       - '.github/scripts/**'
