@@ -9,6 +9,8 @@ name: 'CodeQL'
     branches:
       - master
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'
@@ -18,6 +20,8 @@ name: 'CodeQL'
   pull_request:
     branches:
       - master
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'

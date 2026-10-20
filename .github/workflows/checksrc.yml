@@ -11,6 +11,8 @@ name: 'Source'
     branches:
       - master
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'
@@ -18,6 +20,8 @@ name: 'Source'
   pull_request:
     branches:
       - master
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'

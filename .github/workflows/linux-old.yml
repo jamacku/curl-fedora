@@ -23,6 +23,8 @@ name: 'Linux Old'
     branches:
       - master
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'
@@ -32,6 +34,8 @@ name: 'Linux Old'
   pull_request:
     branches:
       - master
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'
