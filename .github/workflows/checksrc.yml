@@ -12,6 +12,8 @@ name: 'Source'
       - master
       - 'curl-*'
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'
@@ -20,6 +22,8 @@ name: 'Source'
     branches:
       - master
       - 'curl-*'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'

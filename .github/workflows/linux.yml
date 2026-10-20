@@ -10,6 +10,8 @@ name: 'Linux'
       - master
       - 'curl-*'
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'
@@ -19,6 +21,8 @@ name: 'Linux'
     branches:
       - master
       - 'curl-*'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '.circleci/**'
       - 'appveyor.*'

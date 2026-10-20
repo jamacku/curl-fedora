@@ -10,6 +10,8 @@ name: 'CodeQL'
       - master
       - 'curl-*'
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'
@@ -20,6 +22,8 @@ name: 'CodeQL'
     branches:
       - master
       - 'curl-*'
+      - 'rawhide'
+      - 'f*'
     paths-ignore:
       - '**/*.md'
       - '.circleci/**'

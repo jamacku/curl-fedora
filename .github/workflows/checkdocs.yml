@@ -13,6 +13,8 @@ name: 'Docs'
       - master
       - 'curl-*'
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
     paths:
       - '.github/workflows/checkdocs.yml'
       - '.github/scripts/**'
@@ -23,6 +25,8 @@ name: 'Docs'
     branches:
       - master
       - 'curl-*'
+      - 'rawhide'
+      - 'f*'
     paths:
       - '.github/workflows/checkdocs.yml'
       - '.github/scripts/**'

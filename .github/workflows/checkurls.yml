@@ -10,10 +10,14 @@ name: 'URLs'
       - master
       - 'curl-*'
       - '*/ci'
+      - 'rawhide'
+      - 'f*'
   pull_request:
     branches:
       - master
       - 'curl-*'
+      - 'rawhide'
+      - 'f*'
   schedule:
     - cron: '10 5 * * *'
 
