@@ -1,0 +1,40 @@
+specfile_path: .packit_rpm/curl.spec
+files_to_sync:
+  - .packit.yml
+  - src: .packit_rpm/curl.spec
+    dest: curl.spec
+upstream_package_name: curl
+downstream_package_name: curl
+upstream_tag_template: curl-{version}
+srpm_build_deps: []
+
+actions:
+  get-current-version:
+    # Show the closest matching tag for the checked out revision, otherwise
+    # Packit tries to get the latest tag by creation date, which doesn't work well.
+    - "bash -ec 'git describe --tags --abbrev=0 | cut -d- -f1'"
+
+  post-upstream-clone:
+    # Use the Fedora specfile
+    - "git clone -b rawhide https://src.fedoraproject.org/rpms/curl.git .packit_rpm --depth=1"
+    # Drop the "sources" file so rebase-helper doesn't think we're a dist-git
+    - "rm -fv .packit_rpm/sources"
+    # Drop all patches, since they're already included in the tarball
+    - "sed -ri '/^Patch[0-9]+:/d' .packit_rpm/curl.spec"
+    # Replace dynamic %(pkg-config ...) version macros with 0 — the
+    # specfile library's rpm.spec() call cannot evaluate %(...) shell
+    # expansions, causing Requires lines to end with bare '>='
+    - "sed -ri 's/^(%global \\S+_version )\\%\\(.*/\\1 0/' .packit_rpm/curl.spec"
+    # Drop GPG signature verification — packit generates its own tarball
+    # from git, so it will never match the upstream-signed archive
+    - "sed -ri '/gpgverify/d' .packit_rpm/curl.spec"
+
+# Available targets can be listed via `copr-cli list-chroots`
+jobs:
+- job: copr_build
+  trigger: pull_request
+  targets:
+  - fedora-rawhide-aarch64
+  - fedora-rawhide-ppc64le
+  - fedora-rawhide-s390x
+  - fedora-rawhide-x86_64
