@@ -1,0 +1,19 @@
+policy:
+  cherry-pick:
+    upstream:
+      - github: curl/curl
+    exception:
+      note:
+        - 'fedora-only: (feature|bugfix|policy|doc|workaround|ci|test|other)'
+  tracker:
+    - keyword:
+        - 'Resolves: '
+        - 'Related: '
+        - 'Reverts: '
+      type: jira
+      issue-format:
+        - 'RHEL-\d+$'
+        - 'FC-\d+$'
+        - '#\d+$'
+        - 'CVE-\d+-\d+$'
+      url: 'https://issues.redhat.com/browse/'
